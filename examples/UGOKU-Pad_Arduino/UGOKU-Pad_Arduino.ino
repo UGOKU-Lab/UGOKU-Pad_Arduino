@@ -17,8 +17,8 @@ bool isConnected = false;
 // Default values (0xFF means "not received yet")
 uint8_t stick_2 = 90;
 uint8_t stick_3 = 90;
-uint8_t btn_1 = 0xFF;
-uint8_t prev_btn_1 = 0xFF;
+uint8_t switch_1 = 0xFF;
+uint8_t prev_switch_1 = 0xFF;
 
 static inline void updateFromChannel(uint8_t ch, uint8_t& var) {
   uint8_t v = controller.valueForChannel(ch);
@@ -66,14 +66,14 @@ void loop() {
   if (err == UGOKU_PAD_NO_ERROR) {
     if (controller.lastPairsCount() > 0) {
       const uint8_t channels[] = {1, 2, 3};
-      uint8_t* targets[] = {&btn_1, &stick_2, &stick_3};
+      uint8_t* targets[] = {&switch_1, &stick_2, &stick_3};
       for (uint8_t i = 0; i < sizeof(channels) / sizeof(channels[0]); ++i) {
         updateFromChannel(channels[i], *targets[i]);
       }
-
-      if (btn_1 != 0xFF && btn_1 != prev_btn_1) {
-        prev_btn_1 = btn_1;
-        digitalWrite(PIN_LED, (btn_1 == 1) ? LOW : HIGH);
+      // Update LED based on switch_1 state
+      if (switch_1 != 0xFF && switch_1 != prev_switch_1) {
+        prev_switch_1 = switch_1;
+        digitalWrite(PIN_LED, (switch_1 == 1) ? LOW : HIGH);
       }
     }
   } else if (err == UGOKU_PAD_CS_ERROR) {
@@ -82,16 +82,17 @@ void loop() {
     Serial.println("Incoming packet length != 19");
   }
 
-#if 0
-  servo1.write(stick_2);
-  servo2.write(stick_3);
-#endif
+  #if 1 //Servo independent control
+    servo1.write(stick_2);
+    servo2.write(stick_3);
+  #endif
 
-#if 1
-  servo1.write(stick_2 + stick_3 - 90);
-  servo2.write(stick_2 - stick_3 + 90);
-#endif
+  #if 0 //Rotation-servo 2-wheel differential control
+    servo1.write(stick_2 + stick_3 - 90);
+    servo2.write(stick_2 - stick_3 + 90);
+  #endif
 
+  // Read analog distance sensor (GP2Y0A21YK distance sensor)
   int psd = analogRead(PIN_ANALOG_READ);
   float dist = 1 / (float)psd * 30000;
   int dist_int = (int)dist;
