@@ -1,6 +1,16 @@
 # UGOKU-Pad Arduino Library
 ESP32 を UGOKU-Pad アプリで操作するための Arduino ライブラリです。サーボ制御やアナログ入力のサンプルを含み、BLE で 9 組の (channel, value) ペアをやり取りします。
 
+## UGOKU Padについて
+<img src="https://github.com/user-attachments/assets/b2da444f-e0e3-46c4-aa92-2031e2f38083" width="600">
+
+[UGOKU Pad](https://ugoku-lab.github.io/ugokupad.html)は、ESP32などのマイコンをBluetoothでスマートフォンと接続し、簡単に操作できるアプリです。  
+ジョイスティックやスライダー、ボタンなど、色々なウィジェットを組み合わせて、自分だけの操作パネルを作成できます。  
+モーターの操作やセンサーデータをモニタリングなど、様々な用途で活用できます。
+
+[<img src="https://github.com/user-attachments/assets/73952bbe-7f89-46e9-9a6e-cdc7eea8e7c8" alt="Get it on Google Play" height="60">](https://play.google.com/store/apps/details?id=com.ugoku_lab.ugoku_console)　[<img src="https://github.com/user-attachments/assets/e27e5d09-63d0-4a2e-9e14-0bb05dabd487" alt="Get it on Google Play" height="60">](https://apps.apple.com/jp/app/ugoku-pad/id6739496098)
+
+
 ## 機能
 - BLE 経由で最大 9 ペアの (channel, value) を受信・送信（パケット長 19 バイト、末尾 XOR チェックサム）
 - チャンネルごとの最新値取得 API
@@ -41,8 +51,8 @@ void loop() {
 
 ## サンプルスケッチ
 - examples/UGOKU-Pad_Arduino/UGOKU-Pad_Arduino.ino
-    - ch1: LED トグル
-    - ch2, ch3: 対向2輪サーボ操作（ミキシング）
+    - ch1: トグルスイッチによるデジタル出力ピンのオンオフ（LEDを想定）
+    - ch2, ch3: アジャスター、スティックによるサーボモーター操作
     - ch5: アナログ距離値を送信
 
 ## ピン配置（サンプル）
