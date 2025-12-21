@@ -66,3 +66,8 @@ void loop() {
 - Fixed 19 bytes: (ch0,val0)...(ch8,val8) total 18 bytes + 1 checksum byte
 - Checksum is XOR of the first 18 bytes
 - 0xFF is used as an indicator for "not received / unset"
+
+## Reserved values / limitations
+- Channel value 255 (0xFF) is reserved by this library to mean "unused pair" in a packet. As a result, usable channel IDs are 0-254.
+- Value 255 (0xFF) is used internally to mean "not received / unset", so it cannot be distinguished from a real payload value. Avoid using 255 as a meaningful value when reading with `valueForChannel()`.
+- `writeChannel()` fills the remaining 8 pairs with channel 0xFF and value 0.
