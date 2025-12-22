@@ -24,7 +24,7 @@ void loop() {
 
   //Disconnected: stop outputs
   if (!isConnected) { 
-    DigitalWrite(27, LOW);
+    digitalWrite(27, LOW);
     servo2.detach();
     servo3.detach();
     return;
