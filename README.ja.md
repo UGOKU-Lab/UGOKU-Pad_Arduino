@@ -1,5 +1,5 @@
 # UGOKU-Pad Arduino Library
-ESP32 を UGOKU-Pad アプリで操作するための Arduino ライブラリです。サーボ制御やアナログ入力のサンプルを含み、BLE で 9 組の (channel, value) ペアをやり取りします。
+ESP32 を UGOKU Pad アプリで操作するための Arduino ライブラリです。サーボ制御やアナログ入力のサンプルを含み、BLE で 9 組の (channel, value) ペアをやり取りします。
 
 ## UGOKU Padについて
 <img src="https://github.com/user-attachments/assets/b2da444f-e0e3-46c4-aa92-2031e2f38083" width="600">
@@ -14,7 +14,7 @@ ESP32 を UGOKU-Pad アプリで操作するための Arduino ライブラリで
 ## 機能
 - BLE 経由で最大 9 ペアの (channel, value) を受信・送信（パケット長 19 バイト、末尾 XOR チェックサム）
 - チャンネルごとの最新値取得 API
-- サーボ制御とアナログ計測のデモ（例: 対向2輪を1スティックで操作、距離値送信）
+- 受信エラー時に前回値を維持するキャッシュ読み取り
 
 ## 必要環境
 - Arduino IDE 2.x
@@ -33,27 +33,31 @@ ESP32 を UGOKU-Pad アプリで操作するための Arduino ライブラリで
 UGOKUPadController controller;
 
 void setup() {
-    controller.begin("UGOKU-Pad ESP32");
-    controller.setOnConnectCallback([](){ Serial.println("connected"); });
-    controller.setOnDisconnectCallback([](){ Serial.println("disconnected"); });
+  controller.begin("UGOKU Pad ESP32");
 }
 
 void loop() {
-    uint8_t err = controller.readPacket();
-    if (err == UGOKU_PAD_NO_ERROR) {
-        uint8_t v = controller.valueForChannel(1);
-        // ここで受信値を使う
-    }
-    controller.writeChannel(5, 123); // ch5 へ 123 を返信
-    delay(50);
+  controller.update(); // readPacketCached() と同じ
+  uint8_t v = controller.read(1); // valueForChannel() と同じ
+  if (v != 0xFF) {
+    // ここで受信値を使う
+  }
+  controller.write(5, 123); // writeChannel() と同じ
+  delay(50);
 }
 ```
 
+## ショートカット
+- `update()` は `readPacketCached()` のラッパーです。
+- `read(channel)` は `valueForChannel(channel)` のラッパーです。
+- `write(channel, value)` は `writeChannel(channel, value)` のラッパーです。
+- `valueForChannelCached(channel, fallback)` は 0xFF を無視して前回の有効値を返します。
+
 ## サンプルスケッチ
-- examples/UGOKU-Pad_Arduino/UGOKU-Pad_Arduino.ino
-    - ch1: トグルスイッチによるデジタル出力ピンのオンオフ（LEDを想定）
+- examples/UGOKU-Pad_ESP32_example/UGOKU-Pad_ESP32_example.ino
+    - ch1: トグルスイッチによるデジタル出力ピンのオンオフ
     - ch2, ch3: アジャスター、スティックによるサーボモーター操作
-    - ch5: アナログ距離値を送信
+    - ch5: ADC から 0-100 の値を送信
 
 ## ピン配置（サンプル）
 | 機能 | ピン |
@@ -70,5 +74,5 @@ void loop() {
 
 ## 予約値と制限
 - チャンネル値 255 (0xFF) は本ライブラリ内で「未使用ペア」の意味として予約されています。そのため、使用できるチャンネルIDは 0-254 です。
-- 値 255 (0xFF) は「未受信/未設定」を表すため、`valueForChannel()` では実データと区別できません。読み取り用途では 255 を意味のある値として使わないでください。
+- 値 255 (0xFF) は「未受信/未設定」を表すため、`valueForChannel()` や `read()` では実データと区別できません。読み取り用途では 255 を意味のある値として使わないでください。
 - `writeChannel()` は残りの 8 ペアを「ch=0xFF, val=0」で埋めて送信します。

@@ -1,7 +1,7 @@
 # UGOKU-Pad Arduino Library
-日本語はこちら: [README.ja.md](README.ja.md)
+Japanese: [README.ja.md](README.ja.md)
 
-An Arduino library for controlling an ESP32 from the UGOKU-Pad app. It includes examples for servo control and analog input, and exchanges up to 9 (channel, value) pairs over BLE.
+An Arduino library for controlling an ESP32 from the UGOKU Pad app. It includes examples for servo control and analog input, and exchanges up to 9 (channel, value) pairs over BLE.
 
 ## About UGOKU Pad
 <img src="https://github.com/user-attachments/assets/b2da444f-e0e3-46c4-aa92-2031e2f38083" width="600">
@@ -13,7 +13,7 @@ An Arduino library for controlling an ESP32 from the UGOKU-Pad app. It includes 
 ## Features
 - Exchange up to 9 (channel, value) pairs over BLE (fixed packet length 19 bytes, trailing XOR checksum).
 - API to read the latest value per channel.
-- Demo for servo control and analog measurements (e.g., differential two-wheel drive with one stick, distance value transmission).
+- Optional cached reads to keep the last values on packet errors.
 
 ## Requirements
 - Arduino IDE 2.x
@@ -32,27 +32,31 @@ An Arduino library for controlling an ESP32 from the UGOKU-Pad app. It includes 
 UGOKUPadController controller;
 
 void setup() {
-	controller.begin("UGOKU-Pad ESP32");
-	controller.setOnConnectCallback([](){ Serial.println("connected"); });
-	controller.setOnDisconnectCallback([](){ Serial.println("disconnected"); });
+  controller.begin("UGOKU Pad ESP32");
 }
 
 void loop() {
-	uint8_t err = controller.readPacket();
-	if (err == UGOKU_PAD_NO_ERROR) {
-		uint8_t v = controller.valueForChannel(1);
-		// use received value here
-	}
-	controller.writeChannel(5, 123); // reply 123 to ch5
-	delay(50);
+  controller.update(); // Same as readPacketCached()
+  uint8_t v = controller.read(1); // Same as valueForChannel()
+  if (v != 0xFF) {
+    // use received value here
+  }
+  controller.write(5, 123); // Same as writeChannel()
+  delay(50);
 }
 ```
 
+## Shortcuts
+- `update()` is a wrapper for `readPacketCached()`.
+- `read(channel)` is a wrapper for `valueForChannel(channel)`.
+- `write(channel, value)` is a wrapper for `writeChannel(channel, value)`.
+- `valueForChannelCached(channel, fallback)` returns the last valid value (ignores 0xFF).
+
 ## Example sketch
-- examples/UGOKU-Pad_Arduino/UGOKU-Pad_Arduino.ino
-	- ch1: toggle a digital output pin (LED) via a button
-	- ch2, ch3: servo control with adjuster/joystick
-	- ch5: send an analog distance value from the sensor
+- examples/UGOKU-Pad_ESP32_example/UGOKU-Pad_ESP32_example.ino
+  - ch1: toggle a digital output pin via a button
+  - ch2, ch3: servo control with adjuster/joystick
+  - ch5: send an analog value (0-100) from ADC
 
 ## Sample pinout
 | Function | Pin |
@@ -69,5 +73,5 @@ void loop() {
 
 ## Reserved values / limitations
 - Channel value 255 (0xFF) is reserved by this library to mean "unused pair" in a packet. As a result, usable channel IDs are 0-254.
-- Value 255 (0xFF) is used internally to mean "not received / unset", so it cannot be distinguished from a real payload value. Avoid using 255 as a meaningful value when reading with `valueForChannel()`.
+- Value 255 (0xFF) is used internally to mean "not received / unset", so it cannot be distinguished from a real payload value. Avoid using 255 as a meaningful value when reading with `valueForChannel()` or `read()`.
 - `writeChannel()` fills the remaining 8 pairs with channel 0xFF and value 0.

@@ -4,6 +4,8 @@
 UGOKUPadController::UGOKUPadController() {
   for (int i = 0; i < UGOKU_PAD_MAX_CHANNELS; i++) {
     dataArray[i] = 0xFF;
+    cachedArray[i] = 0xFF;
+    hasCached[i] = false;
   }
   lastError = UGOKU_PAD_NO_ERROR;
   lastPairs = 0;
@@ -81,12 +83,48 @@ uint8_t UGOKUPadController::readPacket() {
     uint8_t val = packet[2 * i + 1];
     if (ch < UGOKU_PAD_MAX_CHANNELS) {
       dataArray[ch] = val;
+      if (val != 0xFF) {
+        cachedArray[ch] = val;
+        hasCached[ch] = true;
+      }
       lastPairs++;
     }
   }
 
   lastError = UGOKU_PAD_NO_ERROR;
   return lastError;
+}
+
+bool UGOKUPadController::readPacketCached() {
+  uint8_t dataBackup[UGOKU_PAD_MAX_CHANNELS];
+  uint8_t cachedBackup[UGOKU_PAD_MAX_CHANNELS];
+  bool hasBackup[UGOKU_PAD_MAX_CHANNELS];
+
+  for (int i = 0; i < UGOKU_PAD_MAX_CHANNELS; i++) {
+    dataBackup[i] = dataArray[i];
+    cachedBackup[i] = cachedArray[i];
+    hasBackup[i] = hasCached[i];
+  }
+
+  uint8_t err = readPacket();
+  if (err == UGOKU_PAD_NO_ERROR) {
+    return true;
+  }
+
+  for (int i = 0; i < UGOKU_PAD_MAX_CHANNELS; i++) {
+    dataArray[i] = dataBackup[i];
+    cachedArray[i] = cachedBackup[i];
+    hasCached[i] = hasBackup[i];
+  }
+  return false;
+}
+
+bool UGOKUPadController::update() {
+  return readPacketCached();
+}
+
+uint8_t UGOKUPadController::read(uint8_t channel) const {
+  return valueForChannel(channel);
 }
 
 void UGOKUPadController::writePacket(const uint8_t channels[9], const uint8_t values[9]) {
@@ -121,11 +159,27 @@ void UGOKUPadController::writeChannel(uint8_t channel, uint8_t value) {
   writePacket(chArr, valArr);
 }
 
+void UGOKUPadController::write(uint8_t channel, uint8_t value) {
+  writeChannel(channel, value);
+}
+
 uint8_t UGOKUPadController::valueForChannel(uint8_t channel) const {
   if (channel < UGOKU_PAD_MAX_CHANNELS) {
     return dataArray[channel];
   }
   return 0xFF;
+}
+
+uint8_t UGOKUPadController::valueOr(uint8_t channel, uint8_t fallback) const {
+  uint8_t v = valueForChannel(channel);
+  return (v == 0xFF) ? fallback : v;
+}
+
+uint8_t UGOKUPadController::valueForChannelCached(uint8_t channel, uint8_t fallback) const {
+  if (channel < UGOKU_PAD_MAX_CHANNELS && hasCached[channel]) {
+    return cachedArray[channel];
+  }
+  return fallback;
 }
 
 uint8_t UGOKUPadController::lastPairsCount() const {
