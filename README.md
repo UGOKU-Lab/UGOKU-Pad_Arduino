@@ -37,7 +37,7 @@ void setup() {
 
 void loop() {
   controller.update(); // Same as readPacketCached()
-  uint8_t v = controller.read(1); // Same as valueForChannel()
+  uint8_t v = controller.read(1); // Same as valueForChannelCached(..., 0xFF)
   if (v != 0xFF) {
     // use received value here
   }
@@ -48,9 +48,11 @@ void loop() {
 
 ## Shortcuts
 - `update()` is a wrapper for `readPacketCached()`.
-- `read(channel)` is a wrapper for `valueForChannel(channel)`.
+- `read(channel)` is a wrapper for `valueForChannelCached(channel, 0xFF)`.
+- `read(channel, fallback)` returns the cached value or the fallback if never received.
 - `write(channel, value)` is a wrapper for `writeChannel(channel, value)`.
 - `valueForChannelCached(channel, fallback)` returns the last valid value (ignores 0xFF).
+- `setDefaultValue(channel, value)` seeds a cached value until the first valid packet arrives.
 
 ## Example sketch
 - examples/UGOKU-Pad_ESP32_example/UGOKU-Pad_ESP32_example.ino

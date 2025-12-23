@@ -13,6 +13,7 @@ void UGOKUPadServerCallbacks::onConnect(BLEServer* pServer) {
 }
 
 void UGOKUPadServerCallbacks::onDisconnect(BLEServer* pServer) {
+  controller->resetState();
   if (controller->onDisconnectCallback) {
     controller->onDisconnectCallback();
   }

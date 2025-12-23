@@ -50,6 +50,24 @@ void UGOKUPadController::setOnDisconnectCallback(void (*callback)()) {
   onDisconnectCallback = callback;
 }
 
+void UGOKUPadController::setConnectionHandlers(void (*onConnect)(), void (*onDisconnect)()) {
+  setOnConnectCallback(onConnect);
+  setOnDisconnectCallback(onDisconnect);
+}
+
+void UGOKUPadController::resetState() {
+  for (int i = 0; i < UGOKU_PAD_MAX_CHANNELS; i++) {
+    dataArray[i] = 0xFF;
+    cachedArray[i] = 0xFF;
+    hasCached[i] = false;
+  }
+  lastError = UGOKU_PAD_NO_ERROR;
+  lastPairs = 0;
+  if (pCharacteristic) {
+    pCharacteristic->setValue("");
+  }
+}
+
 uint8_t UGOKUPadController::readPacket() {
   String raw = pCharacteristic->getValue();
   size_t len = raw.length();
@@ -124,7 +142,11 @@ bool UGOKUPadController::update() {
 }
 
 uint8_t UGOKUPadController::read(uint8_t channel) const {
-  return valueForChannel(channel);
+  return valueForChannelCached(channel, 0xFF);
+}
+
+uint8_t UGOKUPadController::read(uint8_t channel, uint8_t fallback) const {
+  return valueForChannelCached(channel, fallback);
 }
 
 void UGOKUPadController::writePacket(const uint8_t channels[9], const uint8_t values[9]) {
@@ -180,6 +202,13 @@ uint8_t UGOKUPadController::valueForChannelCached(uint8_t channel, uint8_t fallb
     return cachedArray[channel];
   }
   return fallback;
+}
+
+void UGOKUPadController::setDefaultValue(uint8_t channel, uint8_t value) {
+  if (channel < UGOKU_PAD_MAX_CHANNELS) {
+    cachedArray[channel] = value;
+    hasCached[channel] = true;
+  }
 }
 
 uint8_t UGOKUPadController::lastPairsCount() const {

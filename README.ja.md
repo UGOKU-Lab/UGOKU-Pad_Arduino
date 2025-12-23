@@ -38,7 +38,7 @@ void setup() {
 
 void loop() {
   controller.update(); // readPacketCached() と同じ
-  uint8_t v = controller.read(1); // valueForChannel() と同じ
+  uint8_t v = controller.read(1); // valueForChannelCached(..., 0xFF) と同じ
   if (v != 0xFF) {
     // ここで受信値を使う
   }
@@ -49,9 +49,11 @@ void loop() {
 
 ## ショートカット
 - `update()` は `readPacketCached()` のラッパーです。
-- `read(channel)` は `valueForChannel(channel)` のラッパーです。
+- `read(channel)` は `valueForChannelCached(channel, 0xFF)` のラッパーです。
+- `read(channel, fallback)` はキャッシュが無い場合に fallback を返します。
 - `write(channel, value)` は `writeChannel(channel, value)` のラッパーです。
 - `valueForChannelCached(channel, fallback)` は 0xFF を無視して前回の有効値を返します。
+- `setDefaultValue(channel, value)` は初期値としてキャッシュに値を入れます。
 
 ## サンプルスケッチ
 - examples/UGOKU-Pad_ESP32_example/UGOKU-Pad_ESP32_example.ino
