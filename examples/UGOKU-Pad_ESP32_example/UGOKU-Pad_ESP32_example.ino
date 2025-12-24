@@ -30,11 +30,6 @@ void setup() {
 }
 
 void loop() {
-  //Limit loop rate
-  static unsigned long last = 0;
-  if (millis() - last < 50) return;
-  last = millis();
-
   //Disconnected: stop outputs
   if (!isConnected) return;
 
@@ -51,4 +46,7 @@ void loop() {
   //Analog read and send to UGOKU Pad
   uint8_t percent = (analogRead(26) * 100U) / 4095U; // 0-100 from ADC.
   UGOKUPad.write(5, percent); // Send 0-100 value.
+
+  //Small delay to avoid flooding
+  delay(50);
 }

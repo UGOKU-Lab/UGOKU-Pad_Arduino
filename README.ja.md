@@ -28,7 +28,7 @@ void setup() {
 void loop() {
   if (!UGOKUPad.update()) return; // 受信値を更新
   uint8_t value = UGOKUPad.read(1); // ch1 の値を取得
-  UGOKUPad.write(5, 123); // ch2 に 123 の値を送信
+  UGOKUPad.write(2, 123); // ch2 に 123 の値を送信
   delay(50);
 }
 ```
@@ -44,7 +44,7 @@ void loop() {
 使用ライブラリ：ESP32Servo
 マイコン：ESP32-WROOM-32E, ESP32-WROVER-32E で動作確認済
 
-### 
+### 機能
 | 機能 | ESP32側のピン | 設定ch |
 | ------------- | ------------- | -- |
 | トグルスイッチによるデジタル出力の操作 | 27 | ch1 |
@@ -52,22 +52,113 @@ void loop() {
 | スティックによるサーボモーターの操作 | 14 | ch3 |
 | アナログ入力値のモニタリング | 26 | ch5 |
 
+### サンプルスケッチ解説 
+<details>
+<summary>サンプルスケッチの解説はこちら</summary>
+
+### ヘッダーとライブラリ読み込み
+UGOKU Pad と通信するためのライブラリと、ESP32でサーボを使うためのライブラリを読み込みます。
+```cpp
+#include <UGOKU-Pad_Controller.h>
+#include <ESP32Servo.h>
+```
+
+### グローバル変数（プログラム全体で使うもの）
+- `UGOKUPad` はUGOKU Padとやり取りするための箱（オブジェクト）です。
+- `isConnected` はスマホがつながっているかどうかを覚えておくフラグ（true/false）です。
+- `servo2` と `servo3` はサーボモーターを動かすための変数です。
+
+```cpp
+UGOKUPadController UGOKUPad;
+bool isConnected = false;
+
+Servo servo2;
+Servo servo3;
+```
+
+### 接続されたときに呼ばれる関数
+UGOKU PadがESP32に接続したときに実行されます。サーボを指定ピンに接続して（attach）、中央の90度に動かします。ローテーションサーボの場合は停止させます。
+```cpp
+void onConnect() {
+  isConnected = true;
+  servo2.attach(12);
+  servo3.attach(14);
+  servo2.write(90);
+  servo3.write(90);
+}
+```
+
+### 切断されたときに呼ばれる関数
+UGOKU Padが切断されたら呼ばれます。フラグを下ろして（false）、LEDなどの出力を消し、サーボの制御を止めて安全にします。
+```cpp
+void onDisconnect() {
+  isConnected = false;
+  digitalWrite(27, LOW);
+  servo2.detach();
+  servo3.detach();
+}
+```
+### 初期化：`setup()`
+起動時に一度だけ動く部分です。
+- `UGOKUPad.begin("My ESP32")` でデバイス名を決めて通信を始めます。
+- 接続/切断のときに先ほどの関数を呼ぶよう登録します。
+- ピンの役割を決めます。ピン26はセンサーなどの入力、ピン27はLEDなどの出力です。
+```cpp
+void setup() {
+  UGOKUPad.begin("My ESP32");
+  UGOKUPad.setConnectionHandlers(onConnect, onDisconnect);
+  pinMode(26, INPUT);
+  pinMode(27, OUTPUT);
+}
+```
+
+### 繰り返し処理：`loop()`
+```cpp
+void loop() {
+  //Disconnected: stop outputs
+  //接続していないときにループに入らないようにしています。
+  if (!isConnected) return;
+
+  //Update UGOKU Pad data
+  //アプリから来た最新データを受け取ります。データに問題があれば中断します。
+  if (!UGOKUPad.update()) return;
+  
+  //Digital output from UGOKU Pad
+  //アプリの ch1（トグルスイッチ）を読み取りピン27をオン/オフします。
+  digitalWrite(27, UGOKUPad.read(1)); 
+  
+  //Servo control from UGOKU Pad
+  //アプリの ch2 と ch3 の値（0〜180）をサーボ角度(ローテーションサーボの場合は速度)にして動かします。
+  servo2.write(UGOKUPad.read(2)); 
+  servo3.write(UGOKUPad.read(3));
+  
+  //Analog read and send to UGOKU Pad
+  //アナログ入力ピンの値を読み、0〜4095の値を0〜100のパーセントに変換してからでアプリに送ります。
+  uint8_t percent = (analogRead(26) * 100U) / 4095U; // 0-100 from ADC.
+  UGOKUPad.write(5, percent); // Send 0-100 value.
+
+  //Small delay to avoid flooding
+  //
+  delay(50);
+}
+```
+</details>
+<br>
 
 # 詳細仕様
-### パケット仕様
-- 最大19バイト: (ch0,val0)...(ch8,val8) 計18バイト + チェックサム1バイト
-- チェックサムは先頭18バイトの XOR
-- 0xFF は「未受信/未設定」の目印として利用
+### 送受信の仕組み
+- 1回(1パケット)の通信は **19バイト固定** です
+- 中身は **(ch, value) の9組 + チェックサム1バイト**
+- **1回で送れるのは最大9チャンネル** です  
+  10チャンネル以上を使うときは、複数回に分けて送ります
+- チャンネルIDは **0-254** を使えます  
+  `0xFF` は「未使用」の印として予約されています
+- 値 `0xFF` は「未受信/未設定」を表すため、意味のある値として使わないでください
 
-### 関数の説明
-- `update()` は受信値を更新し、パケットが不正なら前回値を維持します
-- `read(channel)` は前回の有効値を返し、未受信なら 0xFF になります
-- `read(channel, fallback)` は未受信のときに fallback を返します
-- `write(channel, value)` は (channel, value) をアプリへ送信します
-- `setDefaultValue(channel, value)` は最初の受信までの初期値を入れます
-- `setConnectionHandlers(onConnect, onDisconnect)` は接続/切断時に関数を実行します
-
-### 予約値と制限
-- チャンネル値 255 (0xFF) は本ライブラリ内で「未使用ペア」の意味として予約されています。そのため、使用できるチャンネルIDは 0-254 です。
-- 値 255 (0xFF) は「未受信/未設定」を表すため、`valueForChannel()` や `read()` では実データと区別できません。読み取り用途では 255 を意味のある値として使わないでください。
-- `writeChannel()` は残りの 8 ペアを「ch=0xFF, val=0」で埋めて送信します。
+### 主な関数
+- `update()` 受信値を更新します。パケットが不正なら前回値を維持します
+- `read(channel)` 受信値を取得します。未受信なら `0xFF` です
+- `read(channel, fallback)` 未受信のときに fallback を返します
+- `write(channel, value)` アプリへ (channel, value) を送信します
+- `setDefaultValue(channel, value)` 最初の受信までの初期値を入れます
+- `setConnectionHandlers(onConnect, onDisconnect)` 接続/切断時に関数を実行します
