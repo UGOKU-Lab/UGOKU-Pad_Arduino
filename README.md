@@ -12,8 +12,8 @@ An Arduino library for controlling an ESP32 from the UGOKU Pad app. It includes 
 
 ## Features
 - Exchange up to 9 (channel, value) pairs over BLE (fixed packet length 19 bytes, trailing XOR checksum).
-- API to read the latest value per channel.
-- Optional cached reads to keep the last values on packet errors.
+- Read the latest value per channel.
+- Keep the last values when a packet is invalid.
 
 ## Requirements
 - Arduino IDE 2.x
@@ -36,23 +36,23 @@ void setup() {
 }
 
 void loop() {
-  controller.update(); // Same as readPacketCached()
-  uint8_t v = controller.read(1); // Same as valueForChannelCached(..., 0xFF)
+  controller.update(); // Refresh received values
+  uint8_t v = controller.read(1); // Get channel 1 value
   if (v != 0xFF) {
     // use received value here
   }
-  controller.write(5, 123); // Same as writeChannel()
+  controller.write(5, 123); // Send a value
   delay(50);
 }
 ```
 
-## Shortcuts
-- `update()` is a wrapper for `readPacketCached()`.
-- `read(channel)` is a wrapper for `valueForChannelCached(channel, 0xFF)`.
-- `read(channel, fallback)` returns the cached value or the fallback if never received.
-- `write(channel, value)` is a wrapper for `writeChannel(channel, value)`.
-- `valueForChannelCached(channel, fallback)` returns the last valid value (ignores 0xFF).
-- `setDefaultValue(channel, value)` seeds a cached value until the first valid packet arrives.
+## Functions
+- `update()` refreshes received values and keeps the last ones if a packet is invalid.
+- `read(channel)` returns the last valid value, or 0xFF if none was received.
+- `read(channel, fallback)` returns the last valid value, or `fallback` if none was received.
+- `write(channel, value)` sends one (channel, value) pair to the app.
+- `setDefaultValue(channel, value)` sets a starting value until the first valid packet arrives.
+- `setConnectionHandlers(onConnect, onDisconnect)` runs your functions on connect/disconnect.
 
 ## Example sketch
 - examples/UGOKU-Pad_ESP32_example/UGOKU-Pad_ESP32_example.ino
