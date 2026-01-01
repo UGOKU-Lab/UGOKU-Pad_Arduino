@@ -23,7 +23,7 @@ BLE-capable ESP32 and boards with BLE-capable ESP32 (tested with ESP32-WROOM-32E
 UGOKUPadController UGOKUPad;
 
 void setup() {
-  UGOKUPad.begin("UGOKU Pad ESP32");
+  UGOKUPad.begin("My ESP32");
 }
 
 void loop() {
