@@ -24,7 +24,7 @@ BLE対応ESP32, BLE対応ESP32搭載ボード(ESP32-WROOM-32E, M5StickCPlus2で�
 UGOKUPadController UGOKUPad;
 
 void setup() {
-  UGOKUPad.begin("UGOKU Pad ESP32");
+  UGOKUPad.begin("My ESP32");
 }
 
 void loop() {
