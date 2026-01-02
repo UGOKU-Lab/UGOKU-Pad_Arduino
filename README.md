@@ -117,30 +117,24 @@ void setup() {
 ### 繰り返し処理：`loop()`
 ```cpp
 void loop() {
-  //Disconnected: stop outputs
   //接続していないときにループに入らないようにしています。
   if (!isConnected) return;
 
-  //Update UGOKU Pad data
   //アプリから来た最新データを受け取ります。データに問題があれば中断します。
   if (!UGOKUPad.update()) return;
   
-  //Digital output from UGOKU Pad
   //アプリの ch1（トグルスイッチ）を読み取りピン27をオン/オフします。
   digitalWrite(27, UGOKUPad.read(1)); 
   
-  //Servo control from UGOKU Pad
   //アプリの ch2 と ch3 の値（0〜180）をサーボ角度(ローテーションサーボの場合は速度)にして動かします。
   servo2.write(UGOKUPad.read(2)); 
   servo3.write(UGOKUPad.read(3));
   
-  //Analog read and send to UGOKU Pad
   //アナログ入力ピンの値を読み、0〜4095の値を0〜100のパーセントに変換してからでアプリに送ります。
   uint8_t percent = (analogRead(26) * 100U) / 4095U; // 0-100 from ADC.
   UGOKUPad.write(5, percent); // Send 0-100 value.
 
   //Small delay to avoid flooding
-  //
   delay(50);
 }
 ```
