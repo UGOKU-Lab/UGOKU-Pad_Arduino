@@ -14,27 +14,27 @@ UGOKUPadController::UGOKUPadController() {
   pServer = nullptr;
   pService = nullptr;
   pCharacteristic = nullptr;
+  rxBufferValid = false;
 }
 
-void UGOKUPadController::begin(const char* deviceName) {
+void UGOKUPadController::begin(const char *deviceName) {
   BLEDevice::init(deviceName);
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new UGOKUPadServerCallbacks(this));
 
   pService = pServer->createService(UGOKU_PAD_SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
-    UGOKU_PAD_CHARACTERISTIC_UUID,
-    BLECharacteristic::PROPERTY_READ |
-    BLECharacteristic::PROPERTY_WRITE |
-    BLECharacteristic::PROPERTY_WRITE_NR |
-    BLECharacteristic::PROPERTY_NOTIFY
-  );
+      UGOKU_PAD_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE |
+                                         BLECharacteristic::PROPERTY_WRITE_NR |
+                                         BLECharacteristic::PROPERTY_NOTIFY);
 
   pCharacteristic->addDescriptor(new BLE2902());
+  pCharacteristic->setCallbacks(new UGOKUPadCharacteristicCallbacks(this));
 
   pService->start();
 
-  BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(UGOKU_PAD_SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);
@@ -50,7 +50,8 @@ void UGOKUPadController::setOnDisconnectCallback(void (*callback)()) {
   onDisconnectCallback = callback;
 }
 
-void UGOKUPadController::setConnectionHandlers(void (*onConnect)(), void (*onDisconnect)()) {
+void UGOKUPadController::setConnectionHandlers(void (*onConnect)(),
+                                               void (*onDisconnect)()) {
   setOnConnectCallback(onConnect);
   setOnDisconnectCallback(onDisconnect);
 }
@@ -66,21 +67,35 @@ void UGOKUPadController::resetState() {
   if (pCharacteristic) {
     pCharacteristic->setValue("");
   }
+  rxBufferValid = false;
 }
 
 uint8_t UGOKUPadController::readPacket() {
-  String raw = pCharacteristic->getValue();
-  size_t len = raw.length();
+  uint8_t packet[19];
+  bool hasData = false;
 
-  if (len != 19) {
+  if (rxBufferValid) {
+    // Process captured packet
+    for (int i = 0; i < 19; i++) {
+      packet[i] = rxBuffer[i];
+    }
+    rxBufferValid = false;
+    hasData = true;
+  } else {
+    // Fallback to reading characteristic directly
+    String raw = pCharacteristic->getValue();
+    if (raw.length() == 19) {
+      for (size_t i = 0; i < 19; i++) {
+        packet[i] = static_cast<uint8_t>(raw[i]);
+      }
+      hasData = true;
+    }
+  }
+
+  if (!hasData) {
     lastError = UGOKU_PAD_DATA_ERROR;
     lastPairs = 0;
     return lastError;
-  }
-
-  uint8_t packet[19];
-  for (size_t i = 0; i < 19; i++) {
-    packet[i] = static_cast<uint8_t>(raw[i]);
   }
 
   uint8_t computedCs = 0;
@@ -137,9 +152,7 @@ bool UGOKUPadController::readPacketCached() {
   return false;
 }
 
-bool UGOKUPadController::update() {
-  return readPacketCached();
-}
+bool UGOKUPadController::update() { return readPacketCached(); }
 
 uint8_t UGOKUPadController::read(uint8_t channel) const {
   return valueForChannelCached(channel, 0xFF);
@@ -149,7 +162,8 @@ uint8_t UGOKUPadController::read(uint8_t channel, uint8_t fallback) const {
   return valueForChannelCached(channel, fallback);
 }
 
-void UGOKUPadController::writePacket(const uint8_t channels[9], const uint8_t values[9]) {
+void UGOKUPadController::writePacket(const uint8_t channels[9],
+                                     const uint8_t values[9]) {
   uint8_t packet[19];
 
   for (int i = 0; i < 9; i++) {
@@ -197,7 +211,8 @@ uint8_t UGOKUPadController::valueOr(uint8_t channel, uint8_t fallback) const {
   return (v == 0xFF) ? fallback : v;
 }
 
-uint8_t UGOKUPadController::valueForChannelCached(uint8_t channel, uint8_t fallback) const {
+uint8_t UGOKUPadController::valueForChannelCached(uint8_t channel,
+                                                  uint8_t fallback) const {
   if (channel < UGOKU_PAD_MAX_CHANNELS && hasCached[channel]) {
     return cachedArray[channel];
   }
@@ -211,6 +226,4 @@ void UGOKUPadController::setDefaultValue(uint8_t channel, uint8_t value) {
   }
 }
 
-uint8_t UGOKUPadController::lastPairsCount() const {
-  return lastPairs;
-}
+uint8_t UGOKUPadController::lastPairsCount() const { return lastPairs; }
