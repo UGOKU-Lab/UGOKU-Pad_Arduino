@@ -38,7 +38,7 @@ void UGOKUPadController::begin(const char *deviceName) {
   pAdvertising->addServiceUUID(UGOKU_PAD_SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);
-  pAdvertising->setMinPreferred(0x12);
+  pAdvertising->setMaxPreferred(0x12);
   BLEDevice::startAdvertising();
 }
 
